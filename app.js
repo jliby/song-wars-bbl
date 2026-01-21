@@ -11,6 +11,14 @@ try {
     console.warn('Supabase client failed to initialize. Check keys.');
 }
 
+// --- CONSTANTS ---
+const GENRES = [
+    'Rock', 'Pop', 'Hip-Hop', 'Country', 'Jazz', 'Electronic',
+    '80s Classics', '90s Hits', '2000s Throwback', 'Indie',
+    'R&B', 'Dance', 'Chill Vibes', 'Party Anthems', 'Love Songs',
+    'Guilty Pleasures', 'One-Hit Wonders', 'Movie Soundtracks'
+];
+
 // --- STATE ---
 const state = {
     user: JSON.parse(localStorage.getItem('songwars_user')) || null, // { name, id }
@@ -68,7 +76,7 @@ async function createRoom() {
         code: code,
         host_id: userId,
         status: 'LOBBY',
-        settings: { totalRounds: roundCount },
+        settings: { totalRounds: roundCount, genrePool: GENRES },
         game_state: {
             currentRound: 1,
             currentGenre: null,
@@ -184,6 +192,16 @@ function syncState(room) {
         document.getElementById('waiting-msg').classList.toggle('hidden', state.isHost);
         document.getElementById('start-game-btn').classList.toggle('hidden', !state.isHost);
         document.getElementById('round-config').classList.toggle('hidden', !state.isHost);
+        document.getElementById('genre-config').classList.toggle('hidden', !state.isHost);
+
+        // Sync Genre Pool UI (Host Only)
+        if (state.isHost) {
+            const poolInput = document.getElementById('genre-pool-input');
+            // Only update if not currently focused to avoid overwriting while typing
+            if (document.activeElement !== poolInput) {
+                poolInput.value = (room.settings.genrePool || GENRES).join(', ');
+            }
+        }
     }
 
     // Game Logic
@@ -195,6 +213,7 @@ function syncState(room) {
         // Reset Genre UI
         document.getElementById('genre-result').classList.add('hidden');
         document.getElementById('genre-display').textContent = '?';
+        document.getElementById('host-genre-override').classList.toggle('hidden', !state.isHost);
 
         if (!state.genreSpun) {
             state.genreSpun = true;
@@ -204,6 +223,7 @@ function syncState(room) {
 
     else if (room.status === 'SUBMITTING' && state.currentScreen !== 'submission-section') {
         showScreen('submission-section');
+        // ... (rest of logic same)
 
         // Reset Form
         document.getElementById('youtube-url').value = '';
@@ -281,26 +301,24 @@ document.getElementById('start-game-btn').addEventListener('click', async () => 
 });
 
 // Genre Logic
-const GENRES = [
-    'Rock', 'Pop', 'Hip-Hop', 'Country', 'Jazz', 'Electronic',
-    '80s Classics', '90s Hits', '2000s Throwback', 'Indie',
-    'R&B', 'Dance', 'Chill Vibes', 'Party Anthems', 'Love Songs',
-    'Guilty Pleasures', 'One-Hit Wonders', 'Movie Soundtracks'
-];
-
 function spinGenre() {
     const spinner = document.getElementById('genre-spinner');
     const display = document.getElementById('genre-display');
     const resultDiv = document.getElementById('genre-result');
+    const manualDiv = document.getElementById('host-genre-override');
 
-    // Only host determines the random genre, but everyone sees the spin
-    // Note: In a real app, backend should pick this securely. Front-end trust is fine for this.
-    const selectedGenre = GENRES[Math.floor(Math.random() * GENRES.length)];
+    if (!state.room) return;
+
+    // Use room's genre pool or default
+    const pool = state.room.settings.genrePool || GENRES;
+    const selectedGenre = pool[Math.floor(Math.random() * pool.length)] || 'Rock';
 
     spinner.classList.add('spinning');
+    manualDiv.classList.add('hidden'); // Hide manual input during spin
+
     let counter = 0;
     const spinInterval = setInterval(() => {
-        display.textContent = GENRES[counter % GENRES.length];
+        display.textContent = pool[counter % pool.length];
         counter++;
     }, 100);
 
@@ -313,8 +331,14 @@ function spinGenre() {
         document.getElementById('selected-genre').textContent = selectedGenre;
         resultDiv.classList.remove('hidden');
 
-        // Host updates the DB
+        // Show Host Controls
         if (state.isHost) {
+            document.getElementById('respin-btn').classList.remove('hidden');
+            document.getElementById('host-genre-override').classList.remove('hidden');
+
+            checkRespinForHost();
+
+            // Host updates the DB
             const newState = { ...state.room.game_state, currentGenre: selectedGenre };
             await supabaseClient.from('rooms').update({
                 game_state: newState
@@ -322,6 +346,90 @@ function spinGenre() {
         }
     }, 2000);
 }
+
+function checkRespinForHost() {
+    // Ensure respin button is visible only for host
+    document.getElementById('respin-btn').classList.toggle('hidden', !state.isHost);
+}
+
+document.getElementById('respin-btn').addEventListener('click', () => {
+    // Hide results and spin again locally
+    document.getElementById('genre-result').classList.add('hidden');
+    document.getElementById('host-genre-override').classList.add('hidden');
+    spinGenre();
+});
+
+// Genre Configuration Listeners
+document.getElementById('save-genres-btn').addEventListener('click', async () => {
+    const rawinput = document.getElementById('genre-pool-input').value;
+    const newPool = rawinput.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+    if (newPool.length < 1) return alert('Please enter at least one genre');
+
+    const newSettings = { ...state.room.settings, genrePool: newPool };
+
+    // Optimistic update
+    state.room.settings = newSettings;
+
+    const { error } = await supabaseClient
+        .from('rooms')
+        .update({ settings: newSettings })
+        .eq('code', state.roomCode);
+
+    if (error) alert('Error saving genres');
+    else alert('Genres saved!');
+});
+
+document.getElementById('reset-genres-btn').addEventListener('click', async () => {
+    document.getElementById('genre-pool-input').value = GENRES.join(', ');
+    const newSettings = { ...state.room.settings, genrePool: GENRES };
+
+    state.room.settings = newSettings;
+
+    await supabaseClient
+        .from('rooms')
+        .update({ settings: newSettings })
+        .eq('code', state.roomCode);
+});
+
+document.getElementById('genre-csv-upload').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const text = event.target.result;
+        // Simple CSV parse: split by comma or newline
+        const items = text.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+
+        if (items.length > 0) {
+            document.getElementById('genre-pool-input').value = items.join(', ');
+        } else {
+            alert('No valid text found in file.');
+        }
+    };
+    reader.readAsText(file);
+});
+
+// Manual Genre Override
+document.getElementById('set-manual-genre-btn').addEventListener('click', async () => {
+    const manualInput = document.getElementById('manual-genre-input');
+    const genre = manualInput.value.trim();
+    if (!genre) return alert('Enter a genre');
+
+    // Update UI directly
+    document.getElementById('genre-result').classList.remove('hidden');
+    document.getElementById('selected-genre').textContent = genre;
+    document.getElementById('host-genre-override').classList.add('hidden'); // Hide input after selecting
+
+    // Update DB
+    if (state.isHost) {
+        const newState = { ...state.room.game_state, currentGenre: genre };
+        await supabaseClient.from('rooms').update({
+            game_state: newState
+        }).eq('code', state.roomCode);
+    }
+});
 
 document.getElementById('continue-to-submit-btn').addEventListener('click', async () => {
     if (state.isHost) {
