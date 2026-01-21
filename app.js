@@ -1,7 +1,7 @@
 // --- SUPABASE CONFIG ---
 // TODO: REPLACE THESE WITH YOUR KEYS FROM SUPABASE DASHBOARD
 const SUPABASE_URL = 'https://ipqeypamceftcbkjoeuf.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_jDUHJ9zDvp8in-vqrZfspA_FrCsaWWb';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwcWV5cGFtY2VmdGNia2pvZXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Njk2NjcsImV4cCI6MjA4NDU0NTY2N30.94Y_SlOqMb-NLgm_MN57KeKSyTC3AKPhlJ7zLEKuKvs.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwcWV5cGFtY2VmdGNia2pvZXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Njk2NjcsImV4cCI6MjA4NDU0NTY2N30.94Y_SlOqMb-NLgm_MN57KeKSyTC3AKPhlJ7zLEKuKvs';
 
 // Initialize Client
 let supabase;
