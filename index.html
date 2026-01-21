@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song Wars | Anonymous Music Competition</title>
+    <meta name="description" content="Join your friends in an anonymous song battle. Submit, listen, and vote!">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- Landing Section -->
+        <section id="landing-section" class="screen active">
+            <div class="glass-card main-card">
+                <h1 class="logo-text">SONG<span class="accent-text">WARS</span></h1>
+                <p class="subtitle">Anonymous music battles with your friends.</p>
+
+                <div class="input-group">
+                    <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
+                    <div class="button-row">
+                        <button id="create-room-btn" class="btn primary">Create Room</button>
+                        <button id="join-room-btn" class="btn secondary">Join Room</button>
+                    </div>
+                </div>
+
+                <div id="join-input-group" class="input-group hidden">
+                    <input type="text" id="room-code" placeholder="Enter 6-digit room code" maxlength="6">
+                    <button id="submit-join-btn" class="btn primary">Join Now</button>
+                    <button id="back-to-landing-btn" class="btn-text">Back</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Lobby Section -->
+        <section id="lobby-section" class="screen">
+            <div class="glass-card lobby-card">
+                <div class="lobby-header">
+                    <h2>Lobby</h2>
+                    <div class="room-badge">Room: <span id="display-room-code">------</span></div>
+                </div>
+
+                <div class="player-list-container">
+                    <h3>Players (<span id="player-count">0</span>)</h3>
+                    <ul id="player-list" class="pixel-list">
+                        <!-- Players will be injected here -->
+                    </ul>
+                </div>
+
+                <div id="round-config" class="input-group hidden" style="margin-top: 1rem;">
+                    <label style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.5rem; display: block;">Number of
+                        Rounds</label>
+                    <input type="number" id="round-count" min="1" max="5" value="3"
+                        style="width: 100%; padding: 0.75rem;">
+                </div>
+
+                <div class="lobby-actions">
+                    <button id="start-game-btn" class="btn primary hidden">Start Song War</button>
+                    <p id="waiting-msg" class="info-text">Waiting for host to start...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Genre Spinner Section -->
+        <section id="genre-section" class="screen">
+            <div class="glass-card" style="text-align: center; max-width: 500px; margin: 0 auto;">
+                <h2>Round <span id="current-round-num">1</span> of <span id="total-rounds-num">3</span></h2>
+                <p style="margin-bottom: 2rem;">Spinning for this round's genre...</p>
+
+                <div id="genre-spinner" class="genre-spinner">
+                    <div id="genre-display" class="genre-display">?</div>
+                </div>
+
+                <div id="genre-result" class="hidden" style="margin-top: 2rem;">
+                    <h3 style="color: var(--accent); margin-bottom: 1rem;">This Round's Theme:</h3>
+                    <h2 id="selected-genre" style="font-size: 2rem; margin-bottom: 2rem;">Rock</h2>
+                    <button id="continue-to-submit-btn" class="btn primary">Continue to Submit</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Submission Section -->
+        <section id="submission-section" class="screen">
+            <div class="glass-card submission-card">
+                <h2>Submit Your Song</h2>
+                <p>Paste a YouTube link. It's totally anonymous!</p>
+
+                <div class="input-group">
+                    <input type="text" id="youtube-url" placeholder="https://youtube.com/watch?v=...">
+                    <button id="submit-song-btn" class="btn primary">Submit Song</button>
+                </div>
+
+                <div id="submission-status" class="status-msg hidden">
+                    Song submitted! Waiting for others...
+                </div>
+            </div>
+        </section>
+
+        <!-- Playback Section -->
+        <section id="playback-section" class="screen">
+            <div class="playback-container">
+                <div class="video-container">
+                    <div id="youtube-player"></div>
+                    <div id="player-overlay" class="player-overlay">
+                        <div class="overlay-content">
+                            <h2 id="current-song-title">Song Title</h2>
+                            <p>Listening together...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="playback-controls glass-card">
+                    <div class="progress-bar-container">
+                        <div id="progress-bar" class="progress-bar"></div>
+                    </div>
+                    <div class="playback-info">
+                        <span id="current-time">0:00</span> / <span id="total-time">0:00</span>
+                    </div>
+                    <button id="ready-to-continue-btn" class="btn primary" style="margin-top: 1rem;">
+                        Ready to Continue
+                    </button>
+                    <p id="ready-count-msg" class="info-text" style="margin-top: 0.5rem; display: none;">
+                        Waiting for others... (<span id="ready-count">0</span>/<span id="total-players">0</span>)
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Voting Section -->
+        <section id="voting-section" class="screen">
+            <div class="glass-card voting-card">
+                <h2>Vote for your favorite!</h2>
+                <div id="vote-options" class="vote-grid">
+                    <!-- Song options will be injected here -->
+                </div>
+                <button id="submit-vote-btn" class="btn primary" disabled>Cast Vote</button>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-section" class="screen">
+            <div class="glass-card results-card">
+                <h1 class="winner-text">THE WINNER IS...</h1>
+                <div id="winner-reveal" class="winner-reveal">
+                    <!-- Winner info here -->
+                </div>
+
+                <div class="round-summary">
+                    <h3>Leaderboard</h3>
+                    <ul id="leaderboard" class="pixel-list">
+                        <!-- Rankings here -->
+                    </ul>
+                </div>
+
+                <button id="new-round-btn" class="btn primary hidden">Next Round</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Background Decoration -->
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
