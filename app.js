@@ -4,9 +4,9 @@ const SUPABASE_URL = 'https://ipqeypamceftcbkjoeuf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwcWV5cGFtY2VmdGNia2pvZXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Njk2NjcsImV4cCI6MjA4NDU0NTY2N30.94Y_SlOqMb-NLgm_MN57KeKSyTC3AKPhlJ7zLEKuKvs';
 
 // Initialize Client
-let supabase;
+let supabaseClient;
 try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } catch (e) {
     console.warn('Supabase client failed to initialize. Check keys.');
 }
@@ -82,7 +82,7 @@ async function createRoom() {
         players: [{ id: userId, name: name, isHost: true }]
     };
 
-    const { error } = await supabase.from('rooms').insert(newRoom);
+    const { error } = await supabaseClient.from('rooms').insert(newRoom);
     if (error) return alert('Error creating room: ' + error.message);
 
     state.roomCode = code;
@@ -92,7 +92,7 @@ async function createRoom() {
 
 async function joinRoom(code, name) {
     // 1. Fetch Room
-    const { data: room, error } = await supabase
+    const { data: room, error } = await supabaseClient
         .from('rooms')
         .select('*')
         .eq('code', code)
@@ -107,7 +107,7 @@ async function joinRoom(code, name) {
     const existingPlayer = room.players.find(p => p.id === userId);
     if (!existingPlayer) {
         const updatedPlayers = [...room.players, { id: userId, name: name, isHost: false }];
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseClient
             .from('rooms')
             .update({ players: updatedPlayers })
             .eq('code', code);
@@ -127,13 +127,13 @@ function saveUser(id, name) {
 
 function subscribeToRoom(code) {
     // Clean up old subscription
-    if (state.channel) supabase.removeChannel(state.channel);
+    if (state.channel) supabaseClient.removeChannel(state.channel);
 
     // Initial fetch to paint UI immediately
     fetchRoomState(code);
 
     // Realtime Subscription
-    state.channel = supabase
+    state.channel = supabaseClient
         .channel(`room:${code}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -155,7 +155,7 @@ function subscribeToRoom(code) {
 }
 
 async function fetchRoomState(code) {
-    const { data, error } = await supabase.from('rooms').select('*').eq('code', code).single();
+    const { data, error } = await supabaseClient.from('rooms').select('*').eq('code', code).single();
     if (data) syncState(data);
 }
 
@@ -277,7 +277,7 @@ document.getElementById('submit-join-btn').addEventListener('click', () => {
 document.getElementById('start-game-btn').addEventListener('click', async () => {
     if (!state.room) return;
     state.genreSpun = false;
-    await supabase.from('rooms').update({ status: 'GENRE_SPIN' }).eq('code', state.roomCode);
+    await supabaseClient.from('rooms').update({ status: 'GENRE_SPIN' }).eq('code', state.roomCode);
 });
 
 // Genre Logic
@@ -316,7 +316,7 @@ function spinGenre() {
         // Host updates the DB
         if (state.isHost) {
             const newState = { ...state.room.game_state, currentGenre: selectedGenre };
-            await supabase.from('rooms').update({
+            await supabaseClient.from('rooms').update({
                 game_state: newState
             }).eq('code', state.roomCode);
         }
@@ -325,7 +325,7 @@ function spinGenre() {
 
 document.getElementById('continue-to-submit-btn').addEventListener('click', async () => {
     if (state.isHost) {
-        await supabase.from('rooms').update({ status: 'SUBMITTING' }).eq('code', state.roomCode);
+        await supabaseClient.from('rooms').update({ status: 'SUBMITTING' }).eq('code', state.roomCode);
     }
 });
 
@@ -340,7 +340,7 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
     // Client-side solution: Read-Modify-Write (Optimistic Locking needed ideally).
     // For simplicity: We fetch fresh, then write.
 
-    const { data: freshRoom } = await supabase.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
+    const { data: freshRoom } = await supabaseClient.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
     if (!freshRoom) return;
 
     const subs = freshRoom.game_state.submissions || [];
@@ -353,7 +353,7 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
 
     const newGameState = { ...freshRoom.game_state, submissions: subs };
 
-    await supabase.from('rooms').update({
+    await supabaseClient.from('rooms').update({
         game_state: newGameState,
         status: newStatus
     }).eq('code', state.roomCode);
@@ -364,7 +364,7 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
 
 // Playing & Ready Logic
 document.getElementById('ready-to-continue-btn').addEventListener('click', async () => {
-    const { data: freshRoom } = await supabase.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
+    const { data: freshRoom } = await supabaseClient.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
     if (!freshRoom) return;
 
     const gameState = freshRoom.game_state;
@@ -388,7 +388,7 @@ document.getElementById('ready-to-continue-btn').addEventListener('click', async
         }
     }
 
-    await supabase.from('rooms').update({
+    await supabaseClient.from('rooms').update({
         game_state: { ...gameState, ...updates },
         ...statusUpdate
     }).eq('code', state.roomCode);
@@ -442,7 +442,7 @@ document.getElementById('submit-vote-btn').addEventListener('click', async () =>
 
     const songIndex = parseInt(selectedEl.textContent.replace('Song ', '')) - 1;
 
-    const { data: freshRoom } = await supabase.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
+    const { data: freshRoom } = await supabaseClient.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
     const gameState = freshRoom.game_state;
     const votes = gameState.votes || {};
 
@@ -477,7 +477,7 @@ document.getElementById('submit-vote-btn').addEventListener('click', async () =>
         statusUpdate.status = 'RESULTS';
     }
 
-    await supabase.from('rooms').update({
+    await supabaseClient.from('rooms').update({
         game_state: { ...gameState, ...updates },
         ...statusUpdate
     }).eq('code', state.roomCode);
@@ -538,7 +538,7 @@ document.getElementById('new-round-btn').addEventListener('click', async () => {
     if (!state.isHost) return;
 
     // Fetch fresh to be safe
-    const { data: freshRoom } = await supabase.from('rooms').select('*').eq('code', state.roomCode).single();
+    const { data: freshRoom } = await supabaseClient.from('rooms').select('*').eq('code', state.roomCode).single();
     const gameState = freshRoom.game_state;
     const isLastRound = gameState.currentRound >= freshRoom.settings.totalRounds;
 
@@ -571,7 +571,7 @@ document.getElementById('new-round-btn').addEventListener('click', async () => {
     state.genreSpun = false;
     state.lastSongIndex = -1;
 
-    await supabase.from('rooms').update({
+    await supabaseClient.from('rooms').update({
         game_state: { ...gameState, ...updates },
         status: 'GENRE_SPIN'
     }).eq('code', state.roomCode);
