@@ -41,3 +41,4 @@ Since this app runs in the browser, it needs a cloud database to sync players.
 3. Go to **Settings > Pages**.
 4. Select `main` branch and `/root` folder.
 5. Click **Save**. Your game will be live at `your-username.github.io/song-wars`!
+# song-wars-bbl
