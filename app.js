@@ -1,7 +1,7 @@
 // --- SUPABASE CONFIG ---
 // TODO: REPLACE THESE WITH YOUR KEYS FROM SUPABASE DASHBOARD
-const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
-const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://ipqeypamceftcbkjoeuf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_jDUHJ9zDvp8in-vqrZfspA_FrCsaWWb';
 
 // Initialize Client
 let supabase;
