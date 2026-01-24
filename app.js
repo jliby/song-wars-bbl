@@ -546,8 +546,9 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
     const url = document.getElementById('youtube-url').value.trim();
     if (!url) return alert('Enter a YouTube link');
 
-    document.getElementById('submit-song-btn').disabled = true;
-    document.getElementById('submit-song-btn').textContent = 'Fetching info...';
+    const submitBtn = document.getElementById('submit-song-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Fetching info...';
 
     // Fetch Title
     let songTitle = 'Mystery Song';
@@ -562,10 +563,19 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
     const { data: freshRoom } = await supabaseClient.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
     if (!freshRoom) return;
 
-    const subs = freshRoom.game_state.submissions || [];
-    // Check if already submitted? (Optional: allow re-submit? For now just append)
-    subs.push({ url: url, player_id: state.user.id, title: songTitle });
+    let subs = freshRoom.game_state.submissions || [];
 
+    // Check if user already submitted - if so, update their submission
+    const existingIndex = subs.findIndex(s => s.player_id === state.user.id);
+    if (existingIndex !== -1) {
+        // Update existing submission
+        subs[existingIndex] = { url: url, player_id: state.user.id, title: songTitle };
+    } else {
+        // New submission
+        subs.push({ url: url, player_id: state.user.id, title: songTitle });
+    }
+
+    // Only move to PLAYING when ALL players have submitted
     let newStatus = 'SUBMITTING';
     if (subs.length >= freshRoom.players.length) {
         newStatus = 'PLAYING';
@@ -578,8 +588,16 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
         status: newStatus
     }).eq('code', state.roomCode);
 
+    // Show status but keep button enabled for changing song
     document.getElementById('submission-status').classList.remove('hidden');
-    document.getElementById('submit-song-btn').textContent = 'Submitted!';
+
+    // If not everyone has submitted yet, allow changing
+    if (subs.length < freshRoom.players.length) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Change Song';
+    } else {
+        submitBtn.textContent = 'Submitted!';
+    }
 });
 
 // Playing & Ready Logic
