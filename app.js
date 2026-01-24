@@ -13,10 +13,11 @@ try {
 
 // --- CONSTANTS ---
 const GENRES = [
-    'Rock', 'Pop', 'Hip-Hop', 'Country', 'Jazz', 'Electronic',
-    '80s Classics', '90s Hits', '2000s Throwback', 'Indie',
-    'R&B', 'Dance', 'Chill Vibes', 'Party Anthems', 'Love Songs',
-    'Guilty Pleasures', 'One-Hit Wonders', 'Movie Soundtracks'
+    'Rage', 'Sad/Love', 'Flowstate', 'Unreleased', 'Best Trap Song',
+    'Best Hook', 'Best Song', 'Hype', 'Best Beat', 'Best Sample',
+    'Party/Nightclub Song', 'Unskippable Song', 'First Album', 'Latest Album',
+    'Best Feature', 'Everyone Knows Every Word', 'Floating', 'Indie Pop',
+    'Alternative', 'Nostalgic Song'
 ];
 
 // --- STATE ---
