@@ -693,10 +693,10 @@ function renderVotingOptions(submissions) {
 }
 
 document.getElementById('submit-vote-btn').addEventListener('click', async () => {
-    const selectedEl = document.querySelector('.vote-item.selected span');
+    const selectedEl = document.querySelector('.vote-item.selected');
     if (!selectedEl) return;
 
-    const songIndex = parseInt(selectedEl.textContent.replace('Song ', '')) - 1;
+    const songIndex = parseInt(selectedEl.dataset.index);
 
     const { data: freshRoom } = await supabaseClient.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
     const gameState = freshRoom.game_state;
