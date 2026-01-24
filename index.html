@@ -16,36 +16,55 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- p5.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
 </head>
 
 <body>
     <div id="app" class="app-container">
-        <!-- Landing Section -->
+        <!-- Landing Section - MP3 Player Style -->
         <section id="landing-section" class="screen active">
-            <div class="glass-card main-card">
-                <h1 class="logo-text">SONG<span class="accent-text">WARS</span></h1>
-                <p class="subtitle">Anonymous music battles with your friends.</p>
-
-                <div class="input-group">
-                    <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
-                    <div class="button-row">
-                        <button id="create-room-btn" class="btn primary">Create Room</button>
-                        <button id="join-room-btn" class="btn secondary">Join Room</button>
+            <div class="mp3-player">
+                <!-- Display Screen -->
+                <div class="mp3-screen">
+                    <div class="mp3-screen-inner">
+                        <div class="album-art-area">
+                            <div class="album-art-placeholder">
+                                <i data-lucide="music" style="width: 48px; height: 48px;"></i>
+                            </div>
+                        </div>
+                        <div class="now-playing">
+                            <h1 class="mp3-title">SONG<span class="accent-text">WARS</span></h1>
+                            <p class="mp3-subtitle">Anonymous music battles</p>
+                        </div>
                     </div>
                 </div>
 
-                <div id="join-input-group" class="input-group hidden">
-                    <input type="text" id="room-code" placeholder="Enter 6-digit room code" maxlength="6">
-                    <button id="submit-join-btn" class="btn primary">Join Now</button>
-                    <button id="back-to-landing-btn" class="btn-text">Back</button>
-                </div>
+                <!-- Control Panel -->
+                <div class="mp3-controls">
+                    <input type="text" id="player-name" placeholder="Enter your name" maxlength="20" class="mp3-input">
 
-                <div id="open-lobbies"
-                    style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
-                    <h3 style="font-size: 1rem; opacity: 0.8; margin-bottom: 1rem;">Open Lobbies</h3>
-                    <ul id="lobby-list" class="pixel-list" style="max-height: 150px; overflow-y: auto;">
-                        <li class="info-text" style="opacity: 0.5;">Loading...</li>
-                    </ul>
+                    <div class="mp3-wheel">
+                        <button id="create-room-btn" class="wheel-btn top">Create</button>
+                        <button id="join-room-btn" class="wheel-btn right">Join</button>
+                        <div class="wheel-center">
+                            <i data-lucide="play" style="width: 20px; height: 20px;"></i>
+                        </div>
+                        <button class="wheel-btn left" onclick="loadOpenLobbies()">Refresh</button>
+                        <button id="back-to-landing-btn" class="wheel-btn bottom hidden">Back</button>
+                    </div>
+
+                    <div id="join-input-group" class="mp3-join-group hidden">
+                        <input type="text" id="room-code" placeholder="Room Code" maxlength="6" class="mp3-input">
+                        <button id="submit-join-btn" class="btn primary">Join Now</button>
+                    </div>
+
+                    <div id="open-lobbies" class="mp3-lobbies">
+                        <p class="mp3-lobbies-title">OPEN LOBBIES</p>
+                        <ul id="lobby-list" class="mp3-lobby-list">
+                            <li class="info-text" style="opacity: 0.5;">Loading...</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </section>
@@ -241,6 +260,9 @@
             </div>
         </section>
     </div>
+
+    <!-- p5.js Visualizer Canvas -->
+    <div id="visualizer-container"></div>
 
     <!-- Background Decoration -->
     <div class="bg-blobs">

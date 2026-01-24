@@ -982,11 +982,134 @@ function formatTime(s) {
 function triggerConfetti() {
     for (let i = 0; i < 30; i++) {
         const c = document.createElement('div');
-        c.style.cssText = `position:fixed;width:10px;height:10px;background:#7b2ff7;top:-10px;left:${Math.random() * 100}vw;z-index:99;`;
+        c.style.cssText = `position:fixed;width:10px;height:10px;background:var(--accent);top:-10px;left:${Math.random() * 100}vw;z-index:99;border-radius:50%;`;
         document.body.appendChild(c);
         c.animate([{ top: '-10px' }, { top: '100vh', left: `${(Math.random() - 0.5) * 200}px` }], { duration: 2000 });
         setTimeout(() => c.remove(), 2000);
     }
 }
+
+// --- p5.js Visualizer ---
+let visualizerSketch = function (p) {
+    let particles = [];
+    let wavePoints = [];
+    const numWavePoints = 100;
+    const numParticles = 50;
+    let time = 0;
+
+    p.setup = function () {
+        const container = document.getElementById('visualizer-container');
+        const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+        canvas.parent('visualizer-container');
+        p.noStroke();
+
+        // Initialize wave points
+        for (let i = 0; i < numWavePoints; i++) {
+            wavePoints.push({
+                x: (i / numWavePoints) * p.width,
+                baseY: p.height / 2,
+                offset: p.random(1000)
+            });
+        }
+
+        // Initialize particles
+        for (let i = 0; i < numParticles; i++) {
+            particles.push({
+                x: p.random(p.width),
+                y: p.random(p.height),
+                size: p.random(2, 6),
+                speedX: p.random(-0.5, 0.5),
+                speedY: p.random(-0.5, 0.5),
+                alpha: p.random(50, 150)
+            });
+        }
+    };
+
+    p.draw = function () {
+        p.clear();
+        time += 0.02;
+
+        // Simulate audio levels (since we can't access YouTube audio directly)
+        const fakeLevel = (p.sin(time * 2) + 1) * 0.3 + 0.2;
+        const fakeBass = (p.sin(time * 0.5) + 1) * 0.5;
+
+        // Draw flowing wave
+        p.noFill();
+        p.strokeWeight(2);
+
+        for (let layer = 0; layer < 3; layer++) {
+            p.beginShape();
+            const layerOffset = layer * 0.5;
+            const alpha = 100 - layer * 30;
+
+            // Gradient stroke effect
+            if (layer === 0) {
+                p.stroke(0, 212, 255, alpha);
+            } else if (layer === 1) {
+                p.stroke(123, 47, 247, alpha);
+            } else {
+                p.stroke(255, 100, 200, alpha);
+            }
+
+            for (let i = 0; i < numWavePoints; i++) {
+                const wp = wavePoints[i];
+                const waveHeight = p.sin(time + wp.offset + layerOffset) * (50 + fakeLevel * 100);
+                const x = wp.x;
+                const y = p.height * 0.7 + waveHeight;
+                p.curveVertex(x, y);
+            }
+            p.endShape();
+        }
+
+        // Draw floating particles
+        particles.forEach(particle => {
+            // Move
+            particle.x += particle.speedX + p.sin(time + particle.y * 0.01) * 0.5;
+            particle.y += particle.speedY;
+
+            // Wrap around
+            if (particle.x < 0) particle.x = p.width;
+            if (particle.x > p.width) particle.x = 0;
+            if (particle.y < 0) particle.y = p.height;
+            if (particle.y > p.height) particle.y = 0;
+
+            // Pulse with "audio"
+            const pulseSize = particle.size + fakeBass * 3;
+
+            // Draw glow
+            p.noStroke();
+            p.fill(0, 212, 255, particle.alpha * 0.3);
+            p.ellipse(particle.x, particle.y, pulseSize * 3);
+
+            // Draw core
+            p.fill(255, 255, 255, particle.alpha);
+            p.ellipse(particle.x, particle.y, pulseSize);
+        });
+
+        // Draw center glow orb
+        const orbSize = 100 + fakeBass * 50;
+        const gradient = p.drawingContext.createRadialGradient(
+            p.width / 2, p.height / 2, 0,
+            p.width / 2, p.height / 2, orbSize
+        );
+        gradient.addColorStop(0, 'rgba(0, 212, 255, 0.2)');
+        gradient.addColorStop(0.5, 'rgba(123, 47, 247, 0.1)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        p.drawingContext.fillStyle = gradient;
+        p.ellipse(p.width / 2, p.height / 2, orbSize * 4);
+    };
+
+    p.windowResized = function () {
+        p.resizeCanvas(p.windowWidth, p.windowHeight);
+        // Recalculate wave points
+        for (let i = 0; i < wavePoints.length; i++) {
+            wavePoints[i].x = (i / numWavePoints) * p.width;
+        }
+    };
+};
+
+// Start the visualizer
+new p5(visualizerSketch);
 
 init();
