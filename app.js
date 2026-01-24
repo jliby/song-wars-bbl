@@ -256,6 +256,27 @@ function syncState(room) {
         renderVotingOptions(gameState.submissions);
     }
 
+    else if (room.status === 'TIE_BREAKER' && state.currentScreen !== 'tie-breaker-section') {
+        showScreen('tie-breaker-section');
+        document.getElementById('tie-controls').classList.toggle('hidden', !state.isHost);
+
+        // Reset spinner
+        document.getElementById('tie-spinner').classList.remove('spinning');
+        document.getElementById('tie-display').textContent = '?';
+
+        if (gameState.tieBreaker?.spun && !state.tieSpun) {
+            state.tieSpun = true;
+            spinTieBreaker(gameState.tieBreaker.tiedIndices, true); // Auto-spin for non-hosts if already spun? 
+            // Actually, simplified: Host clicks spin -> We assume everyone sees it locally or we sync the "spinning" state?
+            // For simplicity, let's just let Host click it, and we might not sync the animation perfectly for everyone else unless we add a "SPINNING_TIE" status.
+            // Better approach: Host determines winner immediately but with a delay, and we show animation?
+            // Let's stick to: Host clicks -> Updates state -> Everyone sees result. 
+            // To make it fun for everyone, we can have a "TIE_SPINNING" status? 
+            // Or just let Host control it and transition to results. 
+            // Let's implement local spin on button click for host, then update.
+        }
+    }
+
     else if (room.status === 'RESULTS' && state.currentScreen !== 'results-section') {
         showScreen('results-section');
         renderWinner(room);
@@ -278,27 +299,70 @@ function syncState(room) {
     }
 }
 
+
 // --- ACTIONS (Async Supabase Updates) ---
 
-document.getElementById('create-room-btn').addEventListener('click', createRoom);
+const resetBtn = document.getElementById('reset-db-btn');
+if (resetBtn) resetBtn.addEventListener('click', async () => {
+    if (!confirm('This will wipe ALL rooms and data. Are you sure?')) return;
 
-document.getElementById('join-room-btn').addEventListener('click', () => {
-    if (!playerNameInput.value.trim()) return alert('Enter your name');
-    document.querySelector('.input-group').classList.add('hidden');
-    document.getElementById('join-input-group').classList.remove('hidden');
+    // Clear LocalStorage
+    localStorage.clear();
+
+    // Delete all rooms (using a filter that matches everything)
+    const { error } = await supabaseClient
+        .from('rooms')
+        .delete()
+        .neq('code', '______');
+
+    if (error) {
+        alert('Error resetting: ' + error.message);
+    } else {
+        alert('Data reset! Reloading...');
+        // Reload without query params to clean state
+        window.location.href = window.location.pathname;
+    }
 });
 
-document.getElementById('submit-join-btn').addEventListener('click', () => {
-    const name = playerNameInput.value.trim();
-    const code = roomCodeInput.value.trim().toUpperCase();
-    joinRoom(code, name);
-});
+const createBtn = document.getElementById('create-room-btn');
+if (createBtn) createBtn.addEventListener('click', createRoom);
 
-document.getElementById('start-game-btn').addEventListener('click', async () => {
-    if (!state.room) return;
-    state.genreSpun = false;
-    await supabaseClient.from('rooms').update({ status: 'GENRE_SPIN' }).eq('code', state.roomCode);
-});
+const joinBtn = document.getElementById('join-room-btn');
+if (joinBtn) {
+    joinBtn.addEventListener('click', () => {
+        if (!playerNameInput.value.trim()) return alert('Enter your name');
+        document.querySelector('.input-group').classList.add('hidden');
+        document.getElementById('join-input-group').classList.remove('hidden');
+    });
+}
+
+const submitJoinBtn = document.getElementById('submit-join-btn');
+if (submitJoinBtn) {
+    submitJoinBtn.addEventListener('click', () => {
+        const name = playerNameInput.value.trim();
+        const code = roomCodeInput.value.trim().toUpperCase();
+        joinRoom(code, name);
+    });
+}
+
+const startGameBtn = document.getElementById('start-game-btn');
+if (startGameBtn) {
+    startGameBtn.addEventListener('click', async () => {
+        console.log('Start Game clicked. Current state:', state);
+        if (!state.room) {
+            console.error('No room state found!');
+            return;
+        }
+        state.genreSpun = false;
+        const { error } = await supabaseClient.from('rooms').update({ status: 'GENRE_SPIN' }).eq('code', state.roomCode);
+        if (error) {
+            console.error('Error starting game:', error);
+            alert('Failed to start game: ' + error.message);
+        } else {
+            console.log('Game started successfully (GENRE_SPIN)');
+        }
+    });
+}
 
 // Genre Logic
 function spinGenre() {
@@ -441,18 +505,25 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
     const url = document.getElementById('youtube-url').value.trim();
     if (!url) return alert('Enter a YouTube link');
 
-    // We optimistically fetch fresh state or use local
-    // Safe way: append to existing array
-    // Race condition Warning: multiple users pushing same time?
-    // Supabase solution: Postgres Function is best.
-    // Client-side solution: Read-Modify-Write (Optimistic Locking needed ideally).
-    // For simplicity: We fetch fresh, then write.
+    document.getElementById('submit-song-btn').disabled = true;
+    document.getElementById('submit-song-btn').textContent = 'Fetching info...';
+
+    // Fetch Title
+    let songTitle = 'Mystery Song';
+    try {
+        const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        if (data.title) songTitle = data.title;
+    } catch (e) {
+        console.warn('Failed to fetch title', e);
+    }
 
     const { data: freshRoom } = await supabaseClient.from('rooms').select('game_state, players').eq('code', state.roomCode).single();
     if (!freshRoom) return;
 
     const subs = freshRoom.game_state.submissions || [];
-    subs.push({ url: url, player_id: state.user.id, title: 'Mystery Song' });
+    // Check if already submitted? (Optional: allow re-submit? For now just append)
+    subs.push({ url: url, player_id: state.user.id, title: songTitle });
 
     let newStatus = 'SUBMITTING';
     if (subs.length >= freshRoom.players.length) {
@@ -467,7 +538,7 @@ document.getElementById('submit-song-btn').addEventListener('click', async () =>
     }).eq('code', state.roomCode);
 
     document.getElementById('submission-status').classList.remove('hidden');
-    document.getElementById('submit-song-btn').disabled = true;
+    document.getElementById('submit-song-btn').textContent = 'Submitted!';
 });
 
 // Playing & Ready Logic
@@ -530,15 +601,32 @@ function updateReadyUI(gameState, totalPlayers) {
 function renderVotingOptions(submissions) {
     const container = document.getElementById('vote-options');
     container.innerHTML = '';
+
+    // Sort logic? Or keep random? Random is better for anon.
+    // Ensure we handle index correctly if we shuffle. For now, keep original index.
+
     submissions.forEach((s, i) => {
         const div = document.createElement('div');
         div.className = 'glass-card vote-item';
-        div.innerHTML = `<i data-lucide="music"></i><span>Song ${i + 1}</span>`;
-        div.onclick = () => {
-            document.querySelectorAll('.vote-item').forEach(el => el.classList.remove('selected'));
-            div.classList.add('selected');
-            document.getElementById('submit-vote-btn').disabled = false;
-        };
+
+        const isMine = s.player_id === state.user.id;
+        if (isMine) {
+            div.classList.add('disabled');
+            div.style.opacity = '0.5';
+            div.style.cursor = 'not-allowed';
+            div.innerHTML = `<i data-lucide="music"></i><span>${s.title || 'Song'} (You)</span>`;
+        } else {
+            div.innerHTML = `<i data-lucide="music"></i><span>${s.title || 'Song'}</span>`;
+            div.onclick = () => {
+                document.querySelectorAll('.vote-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                document.getElementById('submit-vote-btn').disabled = false;
+            };
+        }
+
+        // Store index data for retrieval
+        div.dataset.index = i;
+
         container.appendChild(div);
     });
     lucide.createIcons();
@@ -564,32 +652,125 @@ document.getElementById('submit-vote-btn').addEventListener('click', async () =>
         const voteCounts = {};
         Object.values(votes).forEach(idx => voteCounts[idx] = (voteCounts[idx] || 0) + 1);
 
-        let winnerSongIndex = 0;
         let maxVotes = 0;
+        let winners = [];
+
+        // First pass: find max
+        for (const count of Object.values(voteCounts)) {
+            if (count > maxVotes) maxVotes = count;
+        }
+
+        // Second pass: find all indices with max
         for (const [idx, count] of Object.entries(voteCounts)) {
-            if (count > maxVotes) {
-                maxVotes = count;
-                winnerSongIndex = parseInt(idx);
+            if (count === maxVotes) {
+                winners.push(parseInt(idx));
             }
         }
 
-        const winnerPlayerId = gameState.submissions[winnerSongIndex]?.player_id;
-        const roundWinners = gameState.roundWinners || [];
-        roundWinners.push({ round: gameState.currentRound, playerId: winnerPlayerId, songIndex: winnerSongIndex });
+        if (winners.length > 1) {
+            // TIE DETECTED
+            updates.tieBreaker = { tiedIndices: winners };
+            statusUpdate.status = 'TIE_BREAKER';
+        } else {
+            // Single Winner
+            const winnerSongIndex = winners[0];
+            const winnerPlayerId = gameState.submissions[winnerSongIndex]?.player_id;
+            const roundWinners = gameState.roundWinners || [];
+            roundWinners.push({ round: gameState.currentRound, playerId: winnerPlayerId, songIndex: winnerSongIndex });
 
-        const playerScores = gameState.playerScores || {};
-        if (winnerPlayerId) playerScores[winnerPlayerId] = (playerScores[winnerPlayerId] || 0) + 1;
+            const playerScores = gameState.playerScores || {};
+            if (winnerPlayerId) playerScores[winnerPlayerId] = (playerScores[winnerPlayerId] || 0) + 1;
 
-        updates.roundWinners = roundWinners;
-        updates.playerScores = playerScores;
-        statusUpdate.status = 'RESULTS';
+            updates.roundWinners = roundWinners;
+            updates.playerScores = playerScores;
+            statusUpdate.status = 'RESULTS';
+        }
     }
-
     await supabaseClient.from('rooms').update({
         game_state: { ...gameState, ...updates },
         ...statusUpdate
     }).eq('code', state.roomCode);
+
+    // Show confirmation
+    const voteBtn = document.getElementById('submit-vote-btn');
+    const voteStatus = document.getElementById('vote-status');
+    if (voteBtn) {
+        voteBtn.disabled = true;
+        voteBtn.textContent = '✓ Voted!';
+    }
+    if (voteStatus) {
+        voteStatus.classList.remove('hidden');
+        document.getElementById('vote-count').textContent = Object.keys(votes).length;
+        document.getElementById('vote-total').textContent = freshRoom.players.length;
+    }
 });
+
+// Tie Breaker Logic
+const spinTieBtn = document.getElementById('spin-tie-btn');
+if (spinTieBtn) {
+    spinTieBtn.addEventListener('click', () => {
+        if (!state.room) return;
+        const tiedIndices = state.room.game_state.tieBreaker.tiedIndices;
+        spinTieBreaker(tiedIndices);
+    });
+}
+
+function spinTieBreaker() {
+    const spinner = document.getElementById('tie-spinner');
+    const display = document.getElementById('tie-display');
+    const btn = document.getElementById('spin-tie-btn');
+
+    if (!btn || !spinner || !display) return;
+
+    btn.disabled = true;
+    spinner.classList.add('spinning');
+
+    // Just use all players in the room
+    const players = state.room.players;
+    const playerNames = players.map(p => p.name);
+
+    let counter = 0;
+    const spinInterval = setInterval(() => {
+        display.textContent = playerNames[counter % playerNames.length];
+        counter++;
+    }, 100);
+
+    // Host calculates result after delay
+    if (state.isHost) {
+        setTimeout(async () => {
+            clearInterval(spinInterval);
+            spinner.classList.remove('spinning');
+
+            // Pick random player
+            const winnerPlayer = players[Math.floor(Math.random() * players.length)];
+            display.textContent = winnerPlayer.name;
+
+            // Commit Result
+            const gameState = state.room.game_state;
+            const winnerPlayerId = winnerPlayer.id;
+
+            const roundWinners = gameState.roundWinners || [];
+            roundWinners.push({ round: gameState.currentRound, playerId: winnerPlayerId, songIndex: 0 });
+
+            const playerScores = gameState.playerScores || {};
+            playerScores[winnerPlayerId] = (playerScores[winnerPlayerId] || 0) + 1;
+
+            await new Promise(r => setTimeout(r, 1500)); // suspense pause
+
+            await supabaseClient.from('rooms').update({
+                game_state: {
+                    ...gameState,
+                    roundWinners,
+                    playerScores,
+                    tieBreaker: null
+                },
+                status: 'RESULTS'
+            }).eq('code', state.roomCode);
+
+            btn.disabled = false;
+        }, 3000);
+    }
+}
 
 // Results Logic
 function renderWinner(room) {
@@ -707,7 +888,7 @@ function createPlayer(videoId) {
         height: '100%',
         width: '100%',
         videoId: videoId,
-        playerVars: { 'autoplay': 1, 'controls': 0, 'origin': window.location.origin },
+        playerVars: { 'autoplay': 1, 'controls': 1, 'origin': window.location.origin },
         events: {
             'onReady': (e) => { e.target.playVideo(); updateProgress(); },
             'onError': onPlayerError

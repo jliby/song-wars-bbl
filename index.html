@@ -175,7 +175,6 @@
             </div>
         </section>
 
-        <!-- Voting Section -->
         <section id="voting-section" class="screen">
             <div class="glass-card voting-card">
                 <h2>Vote for your favorite!</h2>
@@ -183,6 +182,28 @@
                     <!-- Song options will be injected here -->
                 </div>
                 <button id="submit-vote-btn" class="btn primary" disabled>Cast Vote</button>
+                <div id="vote-status" class="status-msg hidden" style="margin-top: 1rem;">
+                    <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">✓ Vote submitted!</p>
+                    <p class="info-text">Waiting for others... (<span id="vote-count">0</span>/<span
+                            id="vote-total">0</span>)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tie Breaker Section -->
+        <section id="tie-breaker-section" class="screen">
+            <div class="glass-card" style="text-align: center; max-width: 500px; margin: 0 auto;">
+                <h2 style="color: var(--accent); margin-bottom: 1rem;">It's a Tie!</h2>
+                <p style="margin-bottom: 2rem;">Spinning the wheel of destiny...</p>
+
+                <div id="tie-spinner" class="genre-spinner">
+                    <div id="tie-display" class="genre-display">?</div>
+                </div>
+
+                <div id="tie-controls" class="hidden" style="margin-top: 2rem;">
+                    <button id="spin-tie-btn" class="btn primary">Spin to Decide Winner</button>
+                    <p class="info-text" style="margin-top: 1rem;">Host controls the spin</p>
+                </div>
             </div>
         </section>
 

@@ -241,6 +241,55 @@ input:focus {
     box-shadow: 0 0 20px var(--accent-glow);
 }
 
+/* Playback Section */
+.playback-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 900px;
+}
+
+.video-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.video-container iframe {
+    width: 100%;
+    height: 100%;
+}
+
+.player-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+    pointer-events: none;
+}
+
+.overlay-content h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+}
+
+.overlay-content p {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.playback-controls {
+    width: 100%;
+    max-width: 600px;
+}
+
 /* Results Section */
 .winner-text {
     font-size: 1.5rem;
