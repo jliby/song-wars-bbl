@@ -60,6 +60,47 @@ function init() {
     if (roomFromUrl && state.user) {
         joinRoom(roomFromUrl, state.user.name);
     }
+
+    // Load open lobbies
+    loadOpenLobbies();
+}
+
+async function loadOpenLobbies() {
+    const lobbyList = document.getElementById('lobby-list');
+    if (!lobbyList) return;
+
+    try {
+        const { data: rooms, error } = await supabaseClient
+            .from('rooms')
+            .select('code, players, settings')
+            .eq('status', 'LOBBY');
+
+        if (error) throw error;
+
+        if (!rooms || rooms.length === 0) {
+            lobbyList.innerHTML = '<li class="info-text" style="opacity: 0.5;">No open lobbies</li>';
+            return;
+        }
+
+        lobbyList.innerHTML = '';
+        rooms.forEach(room => {
+            const li = document.createElement('li');
+            li.style.cursor = 'pointer';
+            li.innerHTML = `
+                <span><strong>${room.code}</strong> - ${room.players.length} player(s)</span>
+                <span style="color: var(--accent);">Join →</span>
+            `;
+            li.onclick = () => {
+                document.getElementById('room-code').value = room.code;
+                document.querySelector('.input-group').classList.add('hidden');
+                document.getElementById('join-input-group').classList.remove('hidden');
+            };
+            lobbyList.appendChild(li);
+        });
+    } catch (e) {
+        console.error('Failed to load lobbies:', e);
+        lobbyList.innerHTML = '<li class="info-text" style="opacity: 0.5;">Failed to load</li>';
+    }
 }
 
 async function createRoom() {
