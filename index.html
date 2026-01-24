@@ -224,13 +224,20 @@
                 </div>
 
                 <div class="round-summary">
-                    <h3>Leaderboard</h3>
-                    <ul id="leaderboard" class="pixel-list">
-                        <!-- Rankings here -->
+                    <h3 style="margin-bottom: 1rem;">🏆 Standings</h3>
+                    <div id="standings-bracket" class="standings-bracket">
+                        <!-- Bracket will be rendered here -->
+                    </div>
+                </div>
+
+                <div class="round-history" style="margin-top: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">📜 Round History</h3>
+                    <ul id="round-history-list" class="pixel-list" style="max-height: 150px; overflow-y: auto;">
+                        <!-- Round history here -->
                     </ul>
                 </div>
 
-                <button id="new-round-btn" class="btn primary hidden">Next Round</button>
+                <button id="new-round-btn" class="btn primary hidden" style="margin-top: 2rem;">Next Round</button>
             </div>
         </section>
     </div>

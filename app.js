@@ -821,7 +821,8 @@ function renderWinner(room) {
     const isLastRound = gameState.currentRound >= room.settings.totalRounds;
 
     const winnerReveal = document.getElementById('winner-reveal');
-    const leaderboard = document.getElementById('leaderboard');
+    const standingsBracket = document.getElementById('standings-bracket');
+    const roundHistoryList = document.getElementById('round-history-list');
     const newRoundBtn = document.getElementById('new-round-btn');
 
     if (isLastRound) {
@@ -843,17 +844,34 @@ function renderWinner(room) {
         `;
     }
 
-    // Leaderboard
-    leaderboard.innerHTML = '';
+    // Render Standings Bracket
     const sortedPlayers = room.players.map(p => ({
         ...p,
         wins: (gameState.playerScores || {})[p.id] || 0
     })).sort((a, b) => b.wins - a.wins);
 
-    sortedPlayers.forEach(p => {
+    standingsBracket.innerHTML = '';
+    sortedPlayers.forEach((p, idx) => {
+        const rank = idx + 1;
+        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+        const div = document.createElement('div');
+        div.className = 'bracket-row';
+        div.innerHTML = `
+            <span class="bracket-rank">${medal || '#' + rank}</span>
+            <span class="bracket-name">${p.name}</span>
+            <span class="bracket-score">${p.wins} win${p.wins !== 1 ? 's' : ''}</span>
+            <div class="bracket-bar" style="width: ${(p.wins / (room.settings.totalRounds || 1)) * 100}%"></div>
+        `;
+        standingsBracket.appendChild(div);
+    });
+
+    // Render Round History
+    roundHistoryList.innerHTML = '';
+    (gameState.roundWinners || []).forEach(rw => {
+        const player = room.players.find(p => p.id === rw.playerId);
         const li = document.createElement('li');
-        li.innerHTML = `<span>${p.name}</span><span class="player-score">${p.wins} win(s)</span>`;
-        leaderboard.appendChild(li);
+        li.innerHTML = `<span>Round ${rw.round}</span><span style="color: var(--accent);">${player?.name || 'Unknown'} 🏆</span>`;
+        roundHistoryList.appendChild(li);
     });
 
     if (state.isHost) {
